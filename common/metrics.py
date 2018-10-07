@@ -2,8 +2,6 @@
 # Author: Ji Yang <jiyang.py@gmail.com>
 # License: MIT
 
-import torch
-
 SMOOTH = 1e-7
 
 
