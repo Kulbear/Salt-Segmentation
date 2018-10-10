@@ -135,11 +135,16 @@ class UNetResNet(nn.Module):
             self.encoder.conv1,
             self.encoder.bn1,
             self.encoder.relu
-        )
-        self.encoder2 = self.encoder.layer1
-        self.encoder3 = self.encoder.layer2
-        self.encoder4 = self.encoder.layer3
-        self.encoder5 = self.encoder.layer4
+        ) # 64
+        self.se1 = SCSEBlock(64)
+        self.encoder2 = self.encoder.layer1 # 64
+        self.se2 = SCSEBlock(64)
+        self.encoder3 = self.encoder.layer2 # 128
+        self.se3 = SCSEBlock(128)
+        self.encoder4 = self.encoder.layer3 # 256
+        self.se4 = SCSEBlock(256)
+        self.encoder5 = self.encoder.layer4 # 512
+        self.se5 = SCSEBlock(512)
         self.center = nn.Sequential(
             ConvBnRelu2d(512, 512),
             ConvBnRelu2d(512, 256),
@@ -160,12 +165,11 @@ class UNetResNet(nn.Module):
 
     def forward(self, x):
         # batch_size, C, H, W = x.shape
-
-        x = self.conv1(x)
-        e2 = self.encoder2(x)
-        e3 = self.encoder3(e2)
-        e4 = self.encoder4(e3)
-        e5 = self.encoder5(e4)
+        x = self.se1(self.conv1(x))
+        e2 = self.se2(self.encoder2(x))
+        e3 = self.se3(self.encoder3(e2))
+        e4 = self.se4(self.encoder4(e3))
+        e5 = self.se5(self.encoder5(e4))
 
         f = self.center(e5)
 
