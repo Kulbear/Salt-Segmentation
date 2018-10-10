@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+# Author: Ji Yang <jiyang.py@gmail.com>
+# License: MIT
+
 import os
 import time
 
@@ -28,7 +32,6 @@ def train_stage1(net, optimizer, train_loader, val_loader,
                  fold=None,
                  weight_path='stage_1_weights',
                  epochs=30):
-
     mkdir(weight_path)
 
     log = open('log{}.txt'.format(fold), 'a+')
@@ -123,7 +126,6 @@ def train_stage2(net, train_loader, val_loader,
                  n_cycle=8,
                  initial_lr=0.01,
                  epochs_per_cycle=64):
-
     mkdir(f'{weight_path}_fold{fold}')
 
     log = open('log{}.txt'.format(fold), 'a+')
