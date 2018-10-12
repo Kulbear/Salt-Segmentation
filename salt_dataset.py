@@ -30,7 +30,9 @@ augmentation_transform = transforms.Compose([transforms.RandomChoice([padding, r
                                              ])
 
 val_test_transform = transforms.Compose([transforms.Resize(128),
-                                         transforms.ToTensor()
+                                         transforms.ToTensor(),
+                                         transforms.Normalize([0.485, 0.456, 0.406],
+                                                              [0.229, 0.224, 0.225])
                                          ])
 
 
