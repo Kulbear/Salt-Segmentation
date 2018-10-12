@@ -136,7 +136,6 @@ class UNetResNet(nn.Module):
             self.encoder.bn1,
             self.encoder.relu
         ) # 64
-        self.se1 = SCSEBlock(64)
         self.encoder2 = self.encoder.layer1 # 64
         self.se2 = SCSEBlock(64)
         self.encoder3 = self.encoder.layer2 # 128
@@ -165,7 +164,7 @@ class UNetResNet(nn.Module):
 
     def forward(self, x):
         # batch_size, C, H, W = x.shape
-        x = self.se1(self.conv1(x))
+        x = self.conv1(x)
         e2 = self.se2(self.encoder2(x))
         e3 = self.se3(self.encoder3(e2))
         e4 = self.se4(self.encoder4(e3))

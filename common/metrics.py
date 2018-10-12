@@ -2,7 +2,37 @@
 # Author: Ji Yang <jiyang.py@gmail.com>
 # License: MIT
 
+import torch.nn as nn
+import torch.nn.functional as F
+
 SMOOTH = 1e-7
+
+
+class FocalLoss2d(nn.Module):
+    def __init__(self, gamma=2, eps=1e-8):
+        super(FocalLoss2d, self).__init__()
+        self.gamma = gamma
+        self.eps = eps
+
+    def forward(self, input, target):
+        # print(input.size(), target.size())
+        assert input.size() == target.size()
+
+        # input = input.transpose(1,2).transpose(2,3).contiguous().view(-1,1)
+        # target = target.transpose(1,2).transpose(2,3).contiguous().view(-1,1)
+
+        p = input.sigmoid()
+        p = p.clamp(min=self.eps, max=1. - self.eps)
+
+        pt = p * target + (1. - p) * (1 - target)
+        # from Heng, don't apply focal weight to predictions with prob < 0.1
+        # pt[pt < 0.1] = 0.
+
+        w = (1. - pt).pow(self.gamma)
+
+        loss = F.binary_cross_entropy_with_logits(input, target, w)
+
+        return loss
 
 
 def accuracy(prediction, truth, threshold=0.5):
