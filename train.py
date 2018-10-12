@@ -106,7 +106,7 @@ def train_stage1(net, optimizer, train_loader, val_loader,
 
             if epoch_val_iou > best_val_iou:
                 best_val_iou = epoch_val_iou
-                torch.save(net.state_dict(), f'{weight_path}/Stage-1_Fold-{fold}')
+                torch.save(net.state_dict(), f'{weight_path}/Stage_1_Fold_{fold}')
 
     stat['Epoch'] = [_ for _ in range(1, epochs + 1)]
     stat['Stage'] = 1
@@ -128,6 +128,9 @@ def finetune_stage1(net, train_loader, val_loader,
     mkdir(weight_path)
 
     log = open('log{}.txt'.format(fold), 'a+')
+    net.load_state_dict(torch.load(f'stage_1_weights/Stage_1_Fold_{fold}'))
+    print(f'\nModel weights from stage_1_weights/Stage_1_Fold_{fold} Loaded')
+    log.write(f'\nModel weights from stage_1_weights/Stage_1_Fold_{fold} Loaded\n')
 
     stat = pd.DataFrame(columns=['Training Loss', 'Training Acc', 'Training IoU',
                                  'Valid Loss', 'Valid Acc', 'Valid IoU'])
@@ -142,11 +145,11 @@ def finetune_stage1(net, train_loader, val_loader,
     optimizer = optim.SGD(net.parameters(), lr=0.005, momentum=0.9, weight_decay=0.0001)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=8)
 
-    print(f'\nFold-{fold} Warm-up Training Overview')
+    print(f'\nFold-{fold} Finetune Training Overview')
     print('|          Train           |             Val          |')
     print('|-----------------------------------------------------|')
     print('|  Loss   |   Acc  |  IoU  |  Loss   |   Acc  |  IoU  |')
-    log.write(f'\nFold-{fold} Warm-up Training Overview\n')
+    log.write(f'\nFold-{fold} Finetune Training Overview\n')
     log.write('|          Train           |             Val          |\n')
     log.write('|-----------------------------------------------------|\n')
     log.write('|  Loss   |   Acc  |  IoU  |  Loss   |   Acc  |  IoU  |\n')
@@ -207,7 +210,7 @@ def finetune_stage1(net, train_loader, val_loader,
             if epoch_val_iou > best_val_iou:
                 early_stop_counter = 0
                 best_val_iou = epoch_val_iou
-                torch.save(net.state_dict(), f'{weight_path}/Stage-2_Fold-{fold}')
+                torch.save(net.state_dict(), f'{weight_path}/Stage_2_Fold_{fold}')
             else:
                 early_stop_counter += 1
 
@@ -232,13 +235,13 @@ def finetune_stage2(net, train_loader, val_loader,
                     n_cycle=6,
                     initial_lr=0.01,
                     min_lr=0.001,
-                    epochs_per_cycle=64):
+                    epochs_per_cycle=50):
     mkdir(f'{weight_path}_fold{fold}')
 
     log = open('log{}.txt'.format(fold), 'a+')
-    net.load_state_dict(torch.load(f'stage_1_weights/Stage-1_Fold-{fold}'))
-    print(f'\nModel weights from stage_1_weights/Stage-1_Fold-{fold} Loaded')
-    log.write(f'\nModel weights from stage_1_weights/Stage-1_Fold-{fold} Loaded\n')
+    net.load_state_dict(torch.load(f'finetune_stage_1_weights/Stage_2_Fold_{fold}'))
+    print(f'\nModel weights from finetune_stage_1_weights/Stage_2_Fold_{fold} Loaded')
+    log.write(f'\nModel weights from finetune_stage_1_weights/Stage_2_Fold_{fold} Loaded\n')
 
     lr_record = []
     train_loss_record, train_acc_record, train_iou_record = [], [], []
@@ -316,7 +319,7 @@ def finetune_stage2(net, train_loader, val_loader,
 
                 if epoch_val_iou > best_val_iou:
                     best_val_iou = epoch_val_iou
-                    torch.save(net.state_dict(), f'{weight_path}_fold{fold}/cycle_{cycle}_{epoch_val_iou}')
+                    torch.save(net.state_dict(), f'{weight_path}_fold{fold}/cycle_{cycle}')
 
         print(f'Best --> {best_val_iou}')
         log.write(f'Best --> {best_val_iou}\n')
