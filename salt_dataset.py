@@ -12,22 +12,32 @@ from torchvision import transforms
 
 padding = transforms.Compose([transforms.Pad(20, padding_mode='reflect'),
                               transforms.RandomRotation((-6, 6)),
+                              transforms.RandomApply([transforms.RandomAffine(0, shear=6)]),
                               transforms.RandomCrop(128)])
 
 rescaling = transforms.Compose([transforms.Resize(128),
+                                transforms.RandomApply([transforms.RandomAffine(0, shear=6)]),
                                 transforms.RandomRotation((-6, 6))])
 
-augmentation_normalized_transform = transforms.Compose([transforms.RandomChoice([padding, rescaling]),
-                                                        transforms.RandomHorizontalFlip(p=0.5),
-                                                        transforms.ToTensor(),
-                                                        transforms.Normalize([0.485, 0.456, 0.406],
-                                                                             [0.229, 0.224, 0.225])
-                                                        ])
+crop_rescaling = transforms.Compose([transforms.RandomCrop(84),
+                                     transforms.Resize(128),
+                                     transforms.RandomRotation((-6, 6))])
 
-augmentation_transform = transforms.Compose([transforms.RandomChoice([padding, rescaling]),
-                                             transforms.RandomHorizontalFlip(p=0.5),
-                                             transforms.ToTensor()
-                                             ])
+strong_augmentation_transform = transforms.Compose([transforms.RandomChoice([padding, rescaling, crop_rescaling]),
+                                                    transforms.RandomHorizontalFlip(p=0.5),
+                                                    transforms.RandomApply([transforms.ColorJitter(brightness=0.1,
+                                                                                                   contrast=0.1,
+                                                                                                   saturation=0.1,
+                                                                                                   hue=0.1)]),
+                                                    transforms.ToTensor(),
+                                                    transforms.Normalize([0.485, 0.456, 0.406],
+                                                                         [0.229, 0.224, 0.225])
+                                                    ])
+
+basic_augmentation_transform = transforms.Compose([transforms.RandomChoice([padding, rescaling]),
+                                                   transforms.RandomHorizontalFlip(p=0.5),
+                                                   transforms.ToTensor()
+                                                   ])
 
 val_test_transform = transforms.Compose([transforms.Resize(128),
                                          transforms.ToTensor(),
@@ -37,7 +47,7 @@ val_test_transform = transforms.Compose([transforms.Resize(128),
 
 
 class SaltDataset(Dataset):
-    def __init__(self, image, mask=None, transform=augmentation_transform, is_train=True):
+    def __init__(self, image, mask=None, transform=strong_augmentation_transform, is_train=True):
         self.image = image
         self.mask = mask
         self.transform = transform
