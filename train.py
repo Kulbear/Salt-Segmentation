@@ -47,11 +47,11 @@ def train_stage1(net, optimizer, train_loader, val_loader,
     criterion = FocalLoss2d()
     start = time.time()
 
-    print(f'\nFold-{fold} Warm-up Training Overview')
+    print('\nFold-{} Warm-up Training Overview'.format(fold))
     print('|          Train           |             Val          |')
     print('|-----------------------------------------------------|')
     print('|  Loss   |   Acc  |  IoU  |  Loss   |   Acc  |  IoU  |')
-    log.write(f'\nFold-{fold} Warm-up Training Overview\n')
+    log.write('\nFold-{} Warm-up Training Overview\n'.format(fold))
     log.write('|          Train           |             Val          |\n')
     log.write('|-----------------------------------------------------|\n')
     log.write('|  Loss   |   Acc  |  IoU  |  Loss   |   Acc  |  IoU  |\n')
@@ -75,8 +75,8 @@ def train_stage1(net, optimizer, train_loader, val_loader,
             epoch_acc += acc.item() / len(train_loader)
             epoch_iou += iou_.item() / len(train_loader)
 
-        print(f'|{epoch_loss:9.4f}|{epoch_acc:8.4f}|{epoch_iou:7.4f}', end='')
-        log.write(f'|{epoch_loss:9.4f}|{epoch_acc:8.4f}|{epoch_iou:7.4f}')
+        print('|{:9.4f}|{:8.4f}|{:7.4f}'.format(epoch_loss, epoch_acc, epoch_iou), end='')
+        log.write('|{:9.4f}|{:8.4f}|{:7.4f}'.format(epoch_loss, epoch_acc, epoch_iou))
         train_loss_record.append(epoch_loss)
         train_acc_record.append(epoch_acc)
         train_iou_record.append(epoch_iou)
@@ -97,15 +97,15 @@ def train_stage1(net, optimizer, train_loader, val_loader,
                 epoch_val_acc += acc.item() / len(val_loader)
                 epoch_val_iou += iou_.item() / len(val_loader)
 
-            print(f'|{epoch_val_loss:9.4f}|{epoch_val_acc:8.4f}|{epoch_val_iou:7.4f}|')
-            log.write(f'|{epoch_val_loss:9.4f}|{epoch_val_acc:8.4f}|{epoch_val_iou:7.4f}|\n')
+            print('|{:9.4f}|{:8.4f}|{:7.4f}|'.format(epoch_val_loss, epoch_val_acc, epoch_val_iou))
+            log.write('|{:9.4f}|{:8.4f}|{:7.4f}|\n'.format(epoch_val_loss, epoch_val_acc, epoch_val_iou))
             val_loss_record.append(epoch_val_loss)
             val_acc_record.append(epoch_val_acc)
             val_iou_record.append(epoch_val_iou)
 
             if epoch_val_iou > best_val_iou:
                 best_val_iou = epoch_val_iou
-                torch.save(net.state_dict(), f'{weight_path}/Stage_1_Fold_{fold}')
+                torch.save(net.state_dict(), '{}/Stage_1_Fold_{}'.format(weight_path, fold))
 
     # stat['Epoch'] = [_ for _ in range(1, epochs + 1)]
     # stat['Stage'] = 1
@@ -127,9 +127,9 @@ def finetune_stage1(net, train_loader, val_loader,
     mkdir(weight_path)
 
     log = open('log{}.txt'.format(fold), 'a+')
-    net.load_state_dict(torch.load(f'stage_1_weights/Stage_1_Fold_{fold}'))
-    print(f'\nModel weights from stage_1_weights/Stage_1_Fold_{fold} Loaded')
-    log.write(f'\nModel weights from stage_1_weights/Stage_1_Fold_{fold} Loaded\n')
+    net.load_state_dict(torch.load('stage_1_weights/Stage_1_Fold_{}'.format(fold)))
+    print('\nModel weights from stage_1_weights/Stage_1_Fold_{} Loaded'.format(fold))
+    log.write('\nModel weights from stage_1_weights/Stage_1_Fold_{} Loaded\n'.format(fold))
 
     stat = pd.DataFrame(columns=['Training Loss', 'Training Acc', 'Training IoU',
                                  'Valid Loss', 'Valid Acc', 'Valid IoU'])
@@ -144,19 +144,19 @@ def finetune_stage1(net, train_loader, val_loader,
     optimizer = optim.SGD(net.parameters(), lr=0.005, momentum=0.9, weight_decay=0.0001)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=8)
 
-    print(f'\nFold-{fold} Finetune Training Overview')
+    print('\nFold-{} Finetune Training Overview'.format(fold))
     print('|          Train           |             Val          |')
     print('|-----------------------------------------------------|')
     print('|  Loss   |   Acc  |  IoU  |  Loss   |   Acc  |  IoU  |')
-    log.write(f'\nFold-{fold} Finetune Training Overview\n')
+    log.write('\nFold-{} Finetune Training Overview\n'.format(fold))
     log.write('|          Train           |             Val          |\n')
     log.write('|-----------------------------------------------------|\n')
     log.write('|  Loss   |   Acc  |  IoU  |  Loss   |   Acc  |  IoU  |\n')
     early_stop_counter = 0
     for epoch in range(epochs):
         if early_stop_counter > 15:
-            print(f'\nEarly stop at epoch {epoch}!')
-            log.write(f'\nEarly stop at epoch {epoch}!\n')
+            print('\nEarly stop at epoch {}!'.format(epoch))
+            log.write('\nEarly stop at epoch {}!\n'.format(epoch))
             break
         epoch_loss = 0
         epoch_acc = 0
@@ -177,8 +177,8 @@ def finetune_stage1(net, train_loader, val_loader,
             epoch_acc += acc.item() / len(train_loader)
             epoch_iou += iou_.item() / len(train_loader)
 
-        print(f'|{epoch_loss:9.4f}|{epoch_acc:8.4f}|{epoch_iou:7.4f}', end='')
-        log.write(f'|{epoch_loss:9.4f}|{epoch_acc:8.4f}|{epoch_iou:7.4f}')
+        print('|{:9.4f}|{:8.4f}|{:7.4f}'.format(epoch_loss, epoch_acc, epoch_iou), end='')
+        log.write('|{:9.4f}|{:8.4f}|{:7.4f}'.format(epoch_loss, epoch_acc, epoch_iou))
         train_loss_record.append(epoch_loss)
         train_acc_record.append(epoch_acc)
         train_iou_record.append(epoch_iou)
@@ -201,8 +201,8 @@ def finetune_stage1(net, train_loader, val_loader,
 
             # Learning rate decay step
             scheduler.step(epoch_val_iou)
-            print(f'|{epoch_val_loss:9.4f}|{epoch_val_acc:8.4f}|{epoch_val_iou:7.4f}|')
-            log.write(f'|{epoch_val_loss:9.4f}|{epoch_val_acc:8.4f}|{epoch_val_iou:7.4f}|\n')
+            print('|{:9.4f}|{:8.4f}|{:7.4f}|'.format(epoch_val_loss, epoch_val_acc, epoch_val_iou))
+            log.write('|{:9.4f}|{:8.4f}|{:7.4f}|\n'.format(epoch_val_loss, epoch_val_acc, epoch_val_iou))
             val_loss_record.append(epoch_val_loss)
             val_acc_record.append(epoch_val_acc)
             val_iou_record.append(epoch_val_iou)
@@ -210,7 +210,7 @@ def finetune_stage1(net, train_loader, val_loader,
             if epoch_val_iou > best_val_iou:
                 early_stop_counter = 0
                 best_val_iou = epoch_val_iou
-                torch.save(net.state_dict(), f'{weight_path}/Stage_2_Fold_{fold}')
+                torch.save(net.state_dict(), '{}/Stage_2_Fold_{}'.format(weight_path, fold))
             else:
                 early_stop_counter += 1
 
@@ -223,8 +223,8 @@ def finetune_stage1(net, train_loader, val_loader,
     # stat['Valid Loss'] = val_loss_record
     # stat['Valid Acc'] = val_acc_record
     # stat['Valid IoU'] = val_iou_record
-    print(f'Best --> {best_val_iou}')
-    log.write(f'Best --> {best_val_iou}\n')
+    print('Best --> {}'.format(best_val_iou))
+    log.write('Best --> {}\n'.format(best_val_iou))
     print('Time used', time.time() - start)
     return net, stat
 
@@ -236,12 +236,12 @@ def finetune_stage2(net, train_loader, val_loader,
                     initial_lr=0.01,
                     min_lr=0.001,
                     epochs_per_cycle=50):
-    mkdir(f'{weight_path}_fold{fold}')
+    mkdir('{}_fold{}'.format(weight_path, fold))
 
     log = open('log{}.txt'.format(fold), 'a+')
-    net.load_state_dict(torch.load(f'finetune_stage_1_weights/Stage_2_Fold_{fold}'))
-    print(f'\nModel weights from finetune_stage_1_weights/Stage_2_Fold_{fold} Loaded')
-    log.write(f'\nModel weights from finetune_stage_1_weights/Stage_2_Fold_{fold} Loaded\n')
+    net.load_state_dict(torch.load('finetune_stage_1_weights/Stage_2_Fold_{}'.format(fold)))
+    print('\nModel weights from finetune_stage_1_weights/Stage_2_Fold_{} Loaded'.format(fold))
+    log.write('\nModel weights from finetune_stage_1_weights/Stage_2_Fold_{} Loaded\n'.format(fold))
 
     lr_record = []
     train_loss_record, train_acc_record, train_iou_record = [], [], []
@@ -251,11 +251,11 @@ def finetune_stage2(net, train_loader, val_loader,
 
     for cycle in range(n_cycle):
         start = time.time()
-        print(f'\nFold # {fold} Snapshot # {cycle} Overview')
+        print('\nFold # {} Snapshot # {} Overview'.format(fold, cycle))
         print('|          Train           |             Val          |')
         print('|-----------------------------------------------------|')
         print('|  Loss   |   Acc  |  IoU  |  Loss   |   Acc  |  IoU  |')
-        log.write(f'\nFold # {fold} Snapshot # {cycle} Overview\n')
+        log.write('\nFold # {} Snapshot # {} Overview\n'.format(fold, cycle))
         log.write('|          Train           |             Val          |\n')
         log.write('|-----------------------------------------------------|\n')
         log.write('|  Loss   |   Acc  |  IoU  |  Loss   |   Acc  |  IoU  |\n')
@@ -288,8 +288,8 @@ def finetune_stage2(net, train_loader, val_loader,
                 epoch_acc += acc.item() / len(train_loader)
                 epoch_iou += iou_.item() / len(train_loader)
 
-            print(f'|{epoch_loss:9.4f}|{epoch_acc:8.4f}|{epoch_iou:7.4f}', end='')
-            log.write(f'|{epoch_loss:9.4f}|{epoch_acc:8.4f}|{epoch_iou:7.4f}')
+            print('|{:9.4f}|{:8.4f}|{:7.4f}'.format(epoch_loss, epoch_acc, epoch_iou), end='')
+            log.write('|{:9.4f}|{:8.4f}|{:7.4f}'.format(epoch_loss, epoch_acc, epoch_iou))
 
             train_loss_record.append(epoch_loss)
             train_acc_record.append(epoch_acc)
@@ -311,16 +311,16 @@ def finetune_stage2(net, train_loader, val_loader,
                     epoch_val_acc += acc.item() / len(val_loader)
                     epoch_val_iou += iou_.item() / len(val_loader)
 
-                print(f'|{epoch_val_loss:9.4f}|{epoch_val_acc:8.4f}|{epoch_val_iou:7.4f}|')
-                log.write(f'|{epoch_val_loss:9.4f}|{epoch_val_acc:8.4f}|{epoch_val_iou:7.4f}|\n')
+                print('|{:9.4f}|{:8.4f}|{:7.4f}|'.format(epoch_val_loss, epoch_val_acc, epoch_val_iou))
+                log.write('|{:9.4f}|{:8.4f}|{:7.4f}|\n'.format(epoch_val_loss, epoch_val_acc, epoch_val_iou))
                 val_loss_record.append(epoch_val_loss)
                 val_acc_record.append(epoch_val_acc)
                 val_iou_record.append(epoch_val_iou)
 
                 if epoch_val_iou > best_val_iou:
                     best_val_iou = epoch_val_iou
-                    torch.save(net.state_dict(), f'{weight_path}_fold{fold}/cycle_{cycle}')
+                    torch.save(net.state_dict(), '{}_fold{}/cycle_{}'.format(weight_path, fold, cycle))
 
-        print(f'Best --> {best_val_iou}')
-        log.write(f'Best --> {best_val_iou}\n')
+        print('Best --> {}'.format(best_val_iou))
+        log.write('Best --> {}\n'.format(best_val_iou))
         print('Time used', time.time() - start)
