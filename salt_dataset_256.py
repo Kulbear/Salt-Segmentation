@@ -10,20 +10,13 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
 
-padding = transforms.Compose([transforms.Pad(20, padding_mode='reflect'),
-                              transforms.RandomRotation((-6, 6)),
-                              transforms.RandomApply([transforms.RandomAffine(0, shear=6)]),
-                              transforms.RandomCrop(128)])
+padding = transforms.Compose([transforms.Resize(202),
+                              transforms.Pad(30, padding_mode='reflect'),
+                              transforms.RandomRotation((-8, 8)),
+                              transforms.RandomApply([transforms.RandomAffine(0, shear=8)]),
+                              transforms.RandomCrop(256)])
 
-rescaling = transforms.Compose([transforms.Resize(128),
-                                transforms.RandomApply([transforms.RandomAffine(0, shear=6)]),
-                                transforms.RandomRotation((-6, 6))])
-
-crop_rescaling = transforms.Compose([transforms.RandomCrop(84),
-                                     transforms.Resize(128),
-                                     transforms.RandomRotation((-6, 6))])
-
-strong_augmentation_transform = transforms.Compose([transforms.RandomChoice([padding, rescaling, crop_rescaling]),
+strong_augmentation_transform = transforms.Compose([transforms.RandomChoice([padding]),
                                                     transforms.RandomHorizontalFlip(p=0.5),
                                                     transforms.RandomApply([transforms.ColorJitter(brightness=0.1,
                                                                                                    contrast=0.1,
@@ -34,12 +27,12 @@ strong_augmentation_transform = transforms.Compose([transforms.RandomChoice([pad
                                                                          [0.229, 0.224, 0.225])
                                                     ])
 
-basic_augmentation_transform = transforms.Compose([transforms.RandomChoice([padding, rescaling]),
+basic_augmentation_transform = transforms.Compose([transforms.RandomChoice([padding]),
                                                    transforms.RandomHorizontalFlip(p=0.5),
                                                    transforms.ToTensor()
                                                    ])
 
-val_test_transform = transforms.Compose([transforms.Resize(128),
+val_test_transform = transforms.Compose([transforms.Resize(256),
                                          transforms.ToTensor(),
                                          transforms.Normalize([0.485, 0.456, 0.406],
                                                               [0.229, 0.224, 0.225])
