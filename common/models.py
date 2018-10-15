@@ -7,6 +7,8 @@ from torch import nn
 from torch.nn import functional as F
 from torchvision import models
 
+import pretrainedmodels
+
 from common import lovasz_hinge
 
 
@@ -58,8 +60,9 @@ class HengDecoder(nn.Module):
 
 
 class SCSEBlock(nn.Module):
-    def __init__(self, channel, reduction=16):
+    def __init__(self, channel, reduction=16, ordinary=True):
         super(SCSEBlock, self).__init__()
+        self.ordinary = ordinary
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
 
         self.channel_excitation = nn.Sequential(nn.Linear(channel, int(channel // reduction)),
@@ -81,32 +84,10 @@ class SCSEBlock(nn.Module):
 
         spa_se = self.spatial_se(x)
         spa_se = torch.mul(x, spa_se)
-        return torch.add(chn_se, 1, spa_se)
-
-
-class ModifiedSCSEBlock(nn.Module):
-    def __init__(self, channel, reduction=16):
-        super(ModifiedSCSEBlock, self).__init__()
-        self.avg_pool = nn.AdaptiveAvgPool2d(1)
-
-        self.channel_excitation = nn.Sequential(nn.Linear(channel, int(channel // reduction)),
-                                                nn.ReLU(inplace=True),
-                                                nn.Linear(int(channel // reduction), channel),
-                                                nn.Sigmoid())
-
-        self.spatial_se = nn.Sequential(nn.Conv2d(channel, 1, kernel_size=1,
-                                                  stride=1, padding=0, bias=False),
-                                        nn.Sigmoid())
-
-    def forward(self, x):
-        bahs, chs, _, _ = x.size()
-
-        # Returns a new tensor with the same data as the self tensor but of a different size.
-        chn_se = self.avg_pool(x).view(bahs, chs)
-        chn_se = self.channel_excitation(chn_se).view(bahs, chs, 1, 1)
-
-        spa_se = self.spatial_se(x)
-        return torch.mul(torch.mul(x, chn_se), spa_se)
+        if self.ordinary:
+            return chn_se + spa_se
+        else:
+            return torch.mul(torch.mul(x, chn_se), spa_se)
 
 
 class UNetResNet(nn.Module):
@@ -135,22 +116,18 @@ class UNetResNet(nn.Module):
             self.encoder.conv1,
             self.encoder.bn1,
             self.encoder.relu
-        ) # 64
-        self.encoder2 = self.encoder.layer1 # 64
-        self.se2 = SCSEBlock(64)
-        self.encoder3 = self.encoder.layer2 # 128
-        self.se3 = SCSEBlock(128)
-        self.encoder4 = self.encoder.layer3 # 256
-        self.se4 = SCSEBlock(256)
-        self.encoder5 = self.encoder.layer4 # 512
-        self.se5 = SCSEBlock(512)
+        )  # 64
+        self.encoder2 = self.encoder.layer1  # 64
+        self.encoder3 = self.encoder.layer2  # 128
+        self.encoder4 = self.encoder.layer3  # 256
+        self.encoder5 = self.encoder.layer4  # 512
         self.center = nn.Sequential(
             ConvBnRelu2d(512, 512),
-            ConvBnRelu2d(512, 256),
+            ConvBnRelu2d(512, 512),
             nn.MaxPool2d(kernel_size=2, stride=2)
         )
 
-        self.decoder5 = HengDecoder(256 + 512, 512, 64)
+        self.decoder5 = HengDecoder(512 + 512, 512, 64)
         self.decoder4 = HengDecoder(64 + 256, 256, 64)
         self.decoder3 = HengDecoder(64 + 128, 128, 64)
         self.decoder2 = HengDecoder(64 + 64, 64, 64)
@@ -165,17 +142,21 @@ class UNetResNet(nn.Module):
     def forward(self, x):
         # batch_size, C, H, W = x.shape
         x = self.conv1(x)
-        e2 = self.se2(self.encoder2(x))
-        e3 = self.se3(self.encoder3(e2))
-        e4 = self.se4(self.encoder4(e3))
-        e5 = self.se5(self.encoder5(e4))
+        e2 = self.encoder2(x)
+        e3 = self.encoder3(e2)
+        e4 = self.encoder4(e3)
+        e5 = self.encoder5(e4)
 
         f = self.center(e5)
 
         d5 = self.decoder5(f, e5)
+        d5 = F.dropout2d(d5, p=0.05)
         d4 = self.decoder4(d5, e4)
+        d4 = F.dropout2d(d4, p=0.05)
         d3 = self.decoder3(d4, e3)
+        d3 = F.dropout2d(d3, p=0.1)
         d2 = self.decoder2(d3, e2)
+        d2 = F.dropout2d(d2, p=0.1)
         d1 = self.decoder1(d2)
 
         # Hypercolumn
@@ -199,120 +180,84 @@ class UNetResNet(nn.Module):
         return loss
 
 
-class UNet(nn.Module):
+class SEResNextUNet(nn.Module):
+    """ TODO """
 
-    def __init__(self):
-        super(UNet, self).__init__()
+    def __init__(self, dropout_2d=0.5,
+                 pretrained=True):
+        super().__init__()
+        self.dropout_2d = dropout_2d
 
-        self.down1 = nn.Sequential(
-            ConvBn2d(3, 64, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-            ConvBn2d(64, 64, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-        )
-        self.down2 = nn.Sequential(
-            ConvBn2d(64, 128, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-            ConvBn2d(128, 128, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-        )
-        self.down3 = nn.Sequential(
-            ConvBn2d(128, 256, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-            ConvBn2d(256, 256, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-            ConvBn2d(256, 256, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-        )
-        self.down4 = nn.Sequential(
-            ConvBn2d(256, 512, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-            ConvBn2d(512, 512, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-            ConvBn2d(512, 512, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-        )
-        self.down5 = nn.Sequential(
-            ConvBn2d(512, 512, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-            ConvBn2d(512, 512, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-        )
+        self.resnet_layers = list(pretrainedmodels.__dict__['se_resnext50_32x4d'](pretrained='imagenet').children())
+
+        self.maxpool = self.resnet_layers[0][3]
+        # encoding layers
+        self.conv_in = nn.Conv2d(3, 64, kernel_size=7, stride=1, padding=3, bias=False)
+        self.conv_in.weight = self.resnet_layers[0][0].weight
+        for param_a, param_b in zip(self.conv_in.parameters(), self.resnet_layers[0].parameters()):
+            param_a.data = param_b.data
+        self.bn_in = nn.BatchNorm2d(64)
+
+        for param_a, param_b in zip(self.bn_in.parameters(), self.resnet_layers[0][1].parameters()):
+            param_a.data = param_b.data
+        self.relu = nn.ReLU(True)
+
+        self.encoder2 = self.resnet_layers[1]  # 256
+        self.encoder3 = self.resnet_layers[2]  # 512
+        self.encoder4 = self.resnet_layers[3]  # 1024
+        self.encoder5 = self.resnet_layers[4]  # 2048
 
         self.center = nn.Sequential(
-            ConvBn2d(512, 512, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-            ConvBn2d(512, 512, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
+            ConvBnRelu2d(2048, 512),
+            ConvBnRelu2d(512, 512),
+            nn.MaxPool2d(kernel_size=2, stride=2)
         )
 
-        self.up5 = nn.Sequential(
-            ConvBn2d(1024, 512, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-            ConvBn2d(512, 512, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-        )
+        self.decoder5 = HengDecoder(2048 + 512, 512, 64)
+        self.decoder4 = HengDecoder(1088, 256, 64)
+        self.decoder3 = HengDecoder(576, 128, 64)
+        self.decoder2 = HengDecoder(320, 96, 64)
+        self.decoder1 = HengDecoder(64, 96, 64)
 
-        self.up4 = nn.Sequential(
-            ConvBn2d(1024, 512, kernel_size=3, stride=1, padding=1),
+        self.logit = nn.Sequential(
+            nn.Conv2d(320, 64, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
-            ConvBn2d(512, 512, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-            ConvBn2d(512, 256, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
+            nn.Conv2d(64, 1, kernel_size=1, padding=0)
         )
-        self.up3 = nn.Sequential(
-            ConvBn2d(512, 256, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-            ConvBn2d(256, 256, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-            ConvBn2d(256, 128, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-        )
-        self.up2 = nn.Sequential(
-            ConvBn2d(256, 128, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-            ConvBn2d(128, 64, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-        )
-        self.up1 = nn.Sequential(
-            ConvBn2d(128, 64, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-            ConvBn2d(64, 64, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(inplace=True),
-        )
-        self.feature = nn.Sequential(
-            ConvBn2d(64, 64, kernel_size=1, stride=1, padding=0),
-            nn.ReLU(inplace=True),
-        )
-        self.logit = nn.Conv2d(64, 1, kernel_size=1, stride=1, padding=0)
 
     def forward(self, x):
-        down1 = self.down1(x)
-        f = F.max_pool2d(down1, kernel_size=2, stride=2)
-        down2 = self.down2(f)
-        f = F.max_pool2d(down2, kernel_size=2, stride=2)
-        down3 = self.down3(f)
-        f = F.max_pool2d(down3, kernel_size=2, stride=2)
-        down4 = self.down4(f)
-        f = F.max_pool2d(down4, kernel_size=2, stride=2)
-        down5 = self.down5(f)
-        f = F.max_pool2d(down5, kernel_size=2, stride=2)
+        # batch_size, C, H, W = x.shape
+        x = self.conv_in(x)
+        x = self.bn_in(x)
+        x = self.relu(x)
+        x = self.maxpool(x)
+        e2 = self.encoder2(x)
+        e3 = self.encoder3(e2)
+        e4 = self.encoder4(e3)
+        e5 = self.encoder5(e4)
 
-        f = self.center(f)
+        f = self.center(e5)
 
-        f = F.upsample(f, scale_factor=2, mode='bilinear', align_corners=True)
-        f = self.up5(torch.cat([down5, f], 1))
-        f = F.upsample(f, scale_factor=2, mode='bilinear', align_corners=True)
-        f = self.up4(torch.cat([down4, f], 1))
-        f = F.upsample(f, scale_factor=2, mode='bilinear', align_corners=True)
-        f = self.up3(torch.cat([down3, f], 1))
-        f = F.upsample(f, scale_factor=2, mode='bilinear', align_corners=True)
-        f = self.up2(torch.cat([down2, f], 1))
-        f = F.upsample(f, scale_factor=2, mode='bilinear', align_corners=True)
-        f = self.up1(torch.cat([down1, f], 1))
+        d5 = self.decoder5(f, e5)
+        d5 = F.dropout2d(d5, p=0.05)
+        d4 = self.decoder4(d5, e4)
+        d4 = F.dropout2d(d4, p=0.05)
+        d3 = self.decoder3(d4, e3)
+        d3 = F.dropout2d(d3, p=0.1)
+        d2 = self.decoder2(d3, e2)
+        d2 = F.dropout2d(d2, p=0.1)
+        d1 = self.decoder1(d2)
 
-        f = self.feature(f)
+        # Hypercolumn
+        f = torch.cat([
+            d1,
+            F.upsample(d2, scale_factor=2, mode='bilinear', align_corners=False),
+            F.upsample(d3, scale_factor=4, mode='bilinear', align_corners=False),
+            F.upsample(d4, scale_factor=8, mode='bilinear', align_corners=False),
+            F.upsample(d5, scale_factor=16, mode='bilinear', align_corners=False),
+        ], 1)
+
+        f = F.dropout2d(f, p=self.dropout_2d)
         logit = self.logit(f)
 
         return logit
