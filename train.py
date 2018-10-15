@@ -11,7 +11,6 @@ import numpy as np
 from common import iou, accuracy, FocalLoss2d
 
 import torch
-import torch.nn as nn
 import torch.optim as optim
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -108,15 +107,15 @@ def train_stage1(net, optimizer, train_loader, val_loader,
                 best_val_iou = epoch_val_iou
                 torch.save(net.state_dict(), f'{weight_path}/Stage_1_Fold_{fold}')
 
-    stat['Epoch'] = [_ for _ in range(1, epochs + 1)]
-    stat['Stage'] = 1
-    stat['Fold'] = fold
-    stat['Training Loss'] = train_loss_record
-    stat['Training Acc'] = train_acc_record
-    stat['Training IoU'] = train_iou_record
-    stat['Valid Loss'] = val_loss_record
-    stat['Valid Acc'] = val_acc_record
-    stat['Valid IoU'] = val_iou_record
+    # stat['Epoch'] = [_ for _ in range(1, epochs + 1)]
+    # stat['Stage'] = 1
+    # stat['Fold'] = fold
+    # stat['Training Loss'] = train_loss_record
+    # stat['Training Acc'] = train_acc_record
+    # stat['Training IoU'] = train_iou_record
+    # stat['Valid Loss'] = val_loss_record
+    # stat['Valid Acc'] = val_acc_record
+    # stat['Valid IoU'] = val_iou_record
     print('Time used', time.time() - start)
     return net, stat
 
@@ -200,6 +199,7 @@ def finetune_stage1(net, train_loader, val_loader,
                 epoch_val_acc += acc.item() / len(val_loader)
                 epoch_val_iou += iou_.item() / len(val_loader)
 
+            # Learning rate decay step
             scheduler.step(epoch_val_iou)
             print(f'|{epoch_val_loss:9.4f}|{epoch_val_acc:8.4f}|{epoch_val_iou:7.4f}|')
             log.write(f'|{epoch_val_loss:9.4f}|{epoch_val_acc:8.4f}|{epoch_val_iou:7.4f}|\n')
@@ -214,15 +214,15 @@ def finetune_stage1(net, train_loader, val_loader,
             else:
                 early_stop_counter += 1
 
-    stat['Epoch'] = [_ for _ in range(1, epochs + 1)]
-    stat['Stage'] = 1
-    stat['Fold'] = fold
-    stat['Training Loss'] = train_loss_record
-    stat['Training Acc'] = train_acc_record
-    stat['Training IoU'] = train_iou_record
-    stat['Valid Loss'] = val_loss_record
-    stat['Valid Acc'] = val_acc_record
-    stat['Valid IoU'] = val_iou_record
+    # stat['Epoch'] = [_ for _ in range(1, epochs + 1)]
+    # stat['Stage'] = 1
+    # stat['Fold'] = fold
+    # stat['Training Loss'] = train_loss_record
+    # stat['Training Acc'] = train_acc_record
+    # stat['Training IoU'] = train_iou_record
+    # stat['Valid Loss'] = val_loss_record
+    # stat['Valid Acc'] = val_acc_record
+    # stat['Valid IoU'] = val_iou_record
     print(f'Best --> {best_val_iou}')
     log.write(f'Best --> {best_val_iou}\n')
     print('Time used', time.time() - start)
